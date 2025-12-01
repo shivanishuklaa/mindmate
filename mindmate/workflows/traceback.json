@@ -1,0 +1,175 @@
+{
+  "workflow_traces": {
+    "description": "Sample workflow execution traces for debugging and analysis",
+    "version": "1.0.0"
+  },
+  "sample_traces": [
+    {
+      "trace_id": "tr-001-emotional-support",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "workflow_pattern": "single",
+      "input": {
+        "user_message": "I'm feeling really anxious today",
+        "session_id": "sess-abc123"
+      },
+      "routing_decision": {
+        "intent": "emotional_support",
+        "primary_agent": "emotion",
+        "confidence": 0.85,
+        "reasoning": "Detected anxiety keywords"
+      },
+      "execution": {
+        "agents_invoked": ["emotion"],
+        "processing_time_ms": 1250,
+        "tools_used": ["mood_tracker.write"]
+      },
+      "output": {
+        "response_length": 342,
+        "emotions_detected": ["anxiety"],
+        "escalated": false
+      }
+    },
+    {
+      "trace_id": "tr-002-crisis-escalation",
+      "timestamp": "2024-01-15T11:45:00Z",
+      "workflow_pattern": "sequential",
+      "input": {
+        "user_message": "I don't want to live anymore",
+        "session_id": "sess-def456"
+      },
+      "routing_decision": {
+        "intent": "crisis",
+        "primary_agent": "crisis",
+        "supporting_agents": ["emotion"],
+        "confidence": 0.95,
+        "reasoning": "Crisis signals detected - prioritizing safety"
+      },
+      "execution": {
+        "agents_invoked": ["crisis", "emotion"],
+        "processing_time_ms": 980,
+        "tools_used": ["emergency_api.create_alert"],
+        "a2a_messages": [
+          {
+            "source": "crisis",
+            "target": "emotion",
+            "priority": "critical"
+          }
+        ]
+      },
+      "output": {
+        "response_length": 567,
+        "risk_level": "critical",
+        "escalated": true,
+        "alert_created": true
+      }
+    },
+    {
+      "trace_id": "tr-003-cognitive-restructuring",
+      "timestamp": "2024-01-15T14:20:00Z",
+      "workflow_pattern": "sequential",
+      "input": {
+        "user_message": "I always fail at everything I try",
+        "session_id": "sess-ghi789"
+      },
+      "routing_decision": {
+        "intent": "cognitive_restructuring",
+        "primary_agent": "cbt",
+        "supporting_agents": ["emotion"],
+        "confidence": 0.82,
+        "reasoning": "Detected cognitive distortion patterns (all-or-nothing, labeling)"
+      },
+      "execution": {
+        "agents_invoked": ["cbt", "emotion"],
+        "processing_time_ms": 1580,
+        "tools_used": ["journal.write"],
+        "distortions_identified": ["all_or_nothing", "labeling"]
+      },
+      "output": {
+        "response_length": 425,
+        "socratic_questions": 2,
+        "escalated": false
+      }
+    },
+    {
+      "trace_id": "tr-004-parallel-information",
+      "timestamp": "2024-01-15T16:00:00Z",
+      "workflow_pattern": "parallel",
+      "input": {
+        "user_message": "Can you tell me about anxiety and how to cope with it?",
+        "session_id": "sess-jkl012"
+      },
+      "routing_decision": {
+        "intent": "information_seeking",
+        "primary_agent": "knowledge",
+        "supporting_agents": ["emotion"],
+        "confidence": 0.88,
+        "reasoning": "Information request with emotional component"
+      },
+      "execution": {
+        "agents_invoked": ["knowledge", "emotion"],
+        "processing_time_ms": 1120,
+        "parallel_execution": true,
+        "tools_used": []
+      },
+      "output": {
+        "response_length": 612,
+        "topic": "anxiety",
+        "coping_techniques_provided": 5,
+        "escalated": false
+      }
+    },
+    {
+      "trace_id": "tr-005-mood-tracking",
+      "timestamp": "2024-01-15T18:30:00Z",
+      "workflow_pattern": "single",
+      "input": {
+        "user_message": "I want to track my mood. I'm feeling about a 6 today, pretty content.",
+        "session_id": "sess-mno345"
+      },
+      "routing_decision": {
+        "intent": "mood_tracking",
+        "primary_agent": "emotion",
+        "confidence": 0.90,
+        "reasoning": "Explicit mood tracking request"
+      },
+      "execution": {
+        "agents_invoked": ["emotion"],
+        "processing_time_ms": 850,
+        "tools_used": ["mood_tracker.write"]
+      },
+      "output": {
+        "response_length": 198,
+        "mood_logged": {
+          "rating": 6,
+          "level": "good"
+        },
+        "escalated": false
+      }
+    }
+  ],
+  "aggregate_metrics": {
+    "period": "2024-01-15",
+    "total_traces": 5,
+    "by_pattern": {
+      "single": 2,
+      "sequential": 2,
+      "parallel": 1,
+      "loop": 0
+    },
+    "by_intent": {
+      "emotional_support": 1,
+      "crisis": 1,
+      "cognitive_restructuring": 1,
+      "information_seeking": 1,
+      "mood_tracking": 1
+    },
+    "avg_processing_time_ms": 1156,
+    "escalation_rate": 0.2,
+    "tools_usage": {
+      "mood_tracker.write": 2,
+      "emergency_api.create_alert": 1,
+      "journal.write": 1
+    }
+  }
+}
+

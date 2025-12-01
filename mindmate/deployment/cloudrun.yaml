@@ -1,0 +1,133 @@
+# MindMate Cloud Run Service Configuration
+# Deploy with: gcloud run services replace cloudrun.yaml
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: mindmate
+  labels:
+    cloud.googleapis.com/location: us-central1
+  annotations:
+    run.googleapis.com/description: "MindMate Mental Health Multi-Agent System"
+    run.googleapis.com/ingress: all
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        # Autoscaling configuration
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "10"
+        
+        # Request timeout (5 minutes for complex conversations)
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/startup-cpu-boost: "true"
+        
+        # VPC connector for private resources (optional)
+        # run.googleapis.com/vpc-access-connector: projects/PROJECT/locations/REGION/connectors/CONNECTOR
+        # run.googleapis.com/vpc-access-egress: private-ranges-only
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      serviceAccountName: mindmate-sa@PROJECT_ID.iam.gserviceaccount.com
+      
+      containers:
+        - name: mindmate
+          image: gcr.io/PROJECT_ID/mindmate:latest
+          
+          ports:
+            - name: http1
+              containerPort: 8080
+          
+          resources:
+            limits:
+              cpu: "2"
+              memory: 2Gi
+            requests:
+              cpu: "1"
+              memory: 1Gi
+          
+          env:
+            # API Keys (from Secret Manager)
+            - name: MINDMATE_GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: google-api-key
+                  key: latest
+            
+            # Configuration
+            - name: MINDMATE_GEMINI_MODEL
+              value: "gemini-2.0-flash-exp"
+            - name: MINDMATE_LOG_LEVEL
+              value: "INFO"
+            - name: MINDMATE_DEBUG
+              value: "false"
+            
+            # Observability
+            - name: MINDMATE_ENABLE_TRACING
+              value: "true"
+            - name: MINDMATE_ENABLE_METRICS
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "https://otel-collector.internal:4317"
+            
+            # Safety
+            - name: MINDMATE_CRISIS_THRESHOLD
+              value: "0.7"
+            - name: MINDMATE_EMERGENCY_CONTACT_ENABLED
+              value: "true"
+            
+            # Memory paths
+            - name: MINDMATE_MEMORY_DB_PATH
+              value: "/app/data/mindmate.db"
+          
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 30
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+      
+      # Volume for persistent storage (Cloud SQL recommended for production)
+      volumes:
+        - name: data-volume
+          emptyDir:
+            sizeLimit: 1Gi
+
+  traffic:
+    - percent: 100
+      latestRevision: true
+
+---
+# IAM Policy for the service
+apiVersion: run.googleapis.com/v1
+kind: ServiceIAMPolicy
+metadata:
+  name: mindmate
+spec:
+  bindings:
+    # Allow unauthenticated access (for demo; restrict in production)
+    - role: roles/run.invoker
+      members:
+        - allUsers
+    # Service account bindings
+    - role: roles/run.invoker
+      members:
+        - serviceAccount:mindmate-sa@PROJECT_ID.iam.gserviceaccount.com
+

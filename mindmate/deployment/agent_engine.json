@@ -1,0 +1,218 @@
+{
+  "$schema": "https://cloud.google.com/agent-engine/schema/v1/agent-config.json",
+  "name": "mindmate",
+  "displayName": "MindMate - Mental Health Support System",
+  "description": "A multi-agent mental health support system providing emotional support, cognitive behavioral therapy, crisis detection, and psychoeducation.",
+  "version": "1.0.0",
+  
+  "runtime": {
+    "type": "python",
+    "version": "3.11",
+    "entrypoint": "app:app",
+    "requirements": "requirements.txt"
+  },
+  
+  "agents": [
+    {
+      "id": "emotion_agent",
+      "name": "Emotion Support Agent",
+      "description": "Provides empathetic, reflective listening and emotional validation",
+      "model": "gemini-2.0-flash-exp",
+      "temperature": 0.8,
+      "systemInstruction": "You are a compassionate emotional support companion. Validate feelings, reflect understanding, and provide warm support.",
+      "tools": ["mood_tracker", "journal"],
+      "priority": 2
+    },
+    {
+      "id": "cbt_agent", 
+      "name": "CBT Restructuring Agent",
+      "description": "Helps identify and challenge cognitive distortions using Socratic questioning",
+      "model": "gemini-2.0-flash-exp",
+      "temperature": 0.7,
+      "systemInstruction": "You are a CBT companion using Socratic questioning to help users examine thoughts and develop balanced perspectives.",
+      "tools": ["journal"],
+      "priority": 2
+    },
+    {
+      "id": "crisis_agent",
+      "name": "Crisis Detection Agent",
+      "description": "Monitors for mental health crises and coordinates emergency response",
+      "model": "gemini-2.0-flash-exp",
+      "temperature": 0.3,
+      "systemInstruction": "You are a crisis support specialist. Prioritize user safety, provide crisis resources, and coordinate escalation when needed.",
+      "tools": ["emergency_api"],
+      "priority": 1,
+      "alwaysActive": true
+    },
+    {
+      "id": "knowledge_agent",
+      "name": "Knowledge Therapy Agent",
+      "description": "Provides psychoeducation and evidence-based mental health information",
+      "model": "gemini-2.0-flash-exp",
+      "temperature": 0.6,
+      "systemInstruction": "You are a mental health educator providing clear, evidence-based information about mental health topics and coping strategies.",
+      "tools": ["google_search", "journal"],
+      "priority": 3
+    }
+  ],
+  
+  "tools": [
+    {
+      "id": "mood_tracker",
+      "name": "Mood Tracker",
+      "type": "custom",
+      "description": "Log and analyze mood patterns",
+      "operations": [
+        {
+          "name": "write",
+          "description": "Log a mood entry",
+          "parameters": {
+            "mood_rating": {
+              "type": "integer",
+              "description": "Mood level from 1-10",
+              "required": true
+            },
+            "emotions": {
+              "type": "array",
+              "description": "List of emotions felt",
+              "required": false
+            }
+          }
+        },
+        {
+          "name": "read",
+          "description": "Get mood history",
+          "parameters": {
+            "days": {
+              "type": "integer",
+              "description": "Number of days to retrieve",
+              "default": 7
+            }
+          }
+        },
+        {
+          "name": "analyze",
+          "description": "Analyze mood patterns",
+          "parameters": {
+            "days": {
+              "type": "integer",
+              "description": "Number of days to analyze",
+              "default": 30
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "journal",
+      "name": "Journal",
+      "type": "mcp",
+      "description": "Mental health journaling tool",
+      "mcpServer": "journal_mcp",
+      "operations": ["write", "read", "search", "analyze", "list"]
+    },
+    {
+      "id": "emergency_api",
+      "name": "Emergency API",
+      "type": "openapi",
+      "description": "Emergency escalation and crisis resources",
+      "specPath": "tools/emergency_api.yaml",
+      "operations": ["createAlert", "getCrisisResources"]
+    },
+    {
+      "id": "google_search",
+      "name": "Google Search",
+      "type": "builtin",
+      "description": "Search for mental health information",
+      "config": {
+        "safeSearch": true,
+        "domains": [
+          "apa.org",
+          "nimh.nih.gov",
+          "nami.org",
+          "mayoclinic.org",
+          "who.int"
+        ]
+      }
+    }
+  ],
+  
+  "routing": {
+    "type": "intelligent",
+    "defaultAgent": "emotion_agent",
+    "crisisAgent": "crisis_agent",
+    "rules": [
+      {
+        "condition": "crisis_keywords_detected",
+        "action": "route_to_crisis_agent",
+        "priority": "highest"
+      },
+      {
+        "condition": "cognitive_distortion_detected",
+        "action": "route_to_cbt_agent"
+      },
+      {
+        "condition": "information_request",
+        "action": "route_to_knowledge_agent"
+      }
+    ]
+  },
+  
+  "memory": {
+    "session": {
+      "type": "in_memory",
+      "contextWindow": 10,
+      "compactionThreshold": 20
+    },
+    "longTerm": {
+      "type": "sqlite",
+      "path": "/app/data/mindmate.db",
+      "vectorStore": {
+        "enabled": true,
+        "path": "/app/data/chromadb"
+      }
+    }
+  },
+  
+  "observability": {
+    "logging": {
+      "level": "INFO",
+      "format": "json"
+    },
+    "tracing": {
+      "enabled": true,
+      "exporter": "otlp",
+      "samplingRate": 1.0
+    },
+    "metrics": {
+      "enabled": true,
+      "exportInterval": 60
+    }
+  },
+  
+  "safety": {
+    "contentFiltering": {
+      "enabled": true,
+      "level": "moderate"
+    },
+    "crisisDetection": {
+      "enabled": true,
+      "threshold": 0.7,
+      "escalationWebhook": "${EMERGENCY_WEBHOOK_URL}"
+    },
+    "disclaimers": {
+      "enabled": true,
+      "frequency": "session_start"
+    }
+  },
+  
+  "deployment": {
+    "region": "us-central1",
+    "minInstances": 1,
+    "maxInstances": 10,
+    "memory": "2Gi",
+    "cpu": "2",
+    "timeout": 300
+  }
+}
+

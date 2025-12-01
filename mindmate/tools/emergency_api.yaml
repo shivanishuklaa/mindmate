@@ -1,0 +1,503 @@
+openapi: 3.0.3
+info:
+  title: MindMate Emergency API
+  description: |
+    Emergency escalation API for the MindMate Mental Health Support System.
+    
+    This API handles crisis detection, emergency alerts, and escalation workflows.
+    It integrates with the multi-agent system to ensure user safety during
+    mental health crises.
+    
+    ## Safety First
+    This API prioritizes user safety above all else. Critical alerts trigger
+    immediate notifications to configured emergency contacts and services.
+    
+    ## Integration
+    - Webhook notifications for real-time alerts
+    - Integration with crisis hotlines
+    - Audit logging for compliance
+  version: 1.0.0
+  contact:
+    name: MindMate Support
+    email: support@mindmate.ai
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: https://api.mindmate.ai/v1
+    description: Production server
+  - url: https://staging-api.mindmate.ai/v1
+    description: Staging server
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: Alerts
+    description: Emergency alert management
+  - name: Contacts
+    description: Emergency contact management
+  - name: Resources
+    description: Crisis resources and information
+
+paths:
+  /emergency/alerts:
+    post:
+      summary: Create an emergency alert
+      description: |
+        Creates a new emergency alert and triggers appropriate escalation
+        workflows based on severity level.
+        
+        **Severity Levels:**
+        - `low`: Log only, no immediate action
+        - `medium`: Monitor and offer resources
+        - `high`: Send notifications, provide crisis resources
+        - `critical`: Immediate escalation, emergency contacts notified
+      operationId: createAlert
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRequest'
+            examples:
+              critical_alert:
+                summary: Critical crisis alert
+                value:
+                  user_id: "user_123"
+                  session_id: "sess_456"
+                  alert_type: "crisis_detected"
+                  severity: "critical"
+                  trigger_message: "User expressed suicidal ideation"
+                  risk_factors:
+                    - "suicidal_ideation"
+                    - "hopelessness"
+                    - "isolation"
+      responses:
+        '201':
+          description: Alert created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal server error
+    
+    get:
+      summary: List alerts
+      description: Retrieve alert history for a user
+      operationId: listAlerts
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, sent, acknowledged, resolved, failed]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Alerts retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertListResponse'
+
+  /emergency/alerts/{alert_id}:
+    get:
+      summary: Get alert details
+      operationId: getAlert
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: alert_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Alert details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '404':
+          description: Alert not found
+    
+    patch:
+      summary: Update alert status
+      operationId: updateAlert
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: alert_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAlertRequest'
+      responses:
+        '200':
+          description: Alert updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '404':
+          description: Alert not found
+
+  /emergency/contacts:
+    post:
+      summary: Add emergency contact
+      operationId: addContact
+      tags:
+        - Contacts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContactRequest'
+      responses:
+        '201':
+          description: Contact added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+    
+    get:
+      summary: List emergency contacts
+      operationId: listContacts
+      tags:
+        - Contacts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Contacts retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactListResponse'
+
+  /emergency/resources:
+    get:
+      summary: Get crisis resources
+      description: |
+        Returns crisis hotlines and resources for a given region.
+        Resources include:
+        - Suicide prevention hotlines
+        - Crisis text lines
+        - Emergency services
+        - Online resources
+      operationId: getCrisisResources
+      tags:
+        - Resources
+      parameters:
+        - name: region
+          in: query
+          schema:
+            type: string
+            default: us
+            enum: [us, uk, ca, au, international]
+      responses:
+        '200':
+          description: Crisis resources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrisisResources'
+
+  /emergency/webhook/test:
+    post:
+      summary: Test webhook endpoint
+      description: Send a test notification to verify webhook configuration
+      operationId: testWebhook
+      tags:
+        - Alerts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Webhook test successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateAlertRequest:
+      type: object
+      required:
+        - user_id
+        - alert_type
+        - severity
+        - trigger_message
+      properties:
+        user_id:
+          type: string
+          description: User the alert is for
+        session_id:
+          type: string
+          description: Current session ID
+        alert_type:
+          type: string
+          enum:
+            - crisis_detected
+            - safety_check_failed
+            - escalation_requested
+            - welfare_check
+            - emergency_contact
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        trigger_message:
+          type: string
+          description: Message that triggered the alert
+        risk_factors:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+
+    UpdateAlertRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, sent, acknowledged, resolved, failed]
+        notes:
+          type: string
+        actions_taken:
+          type: array
+          items:
+            type: string
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        session_id:
+          type: string
+        alert_type:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+        trigger_message:
+          type: string
+        risk_factors:
+          type: array
+          items:
+            type: string
+        actions_taken:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+
+    AlertResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        alert_id:
+          type: string
+        alert_type:
+          type: string
+        severity:
+          type: string
+        status:
+          type: string
+        message:
+          type: string
+        webhook_sent:
+          type: boolean
+        crisis_resources:
+          $ref: '#/components/schemas/CrisisResources'
+        immediate_actions:
+          type: array
+          items:
+            type: string
+
+    AlertListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alert'
+        count:
+          type: integer
+        total:
+          type: integer
+
+    CreateContactRequest:
+      type: object
+      required:
+        - user_id
+        - name
+        - relationship
+      properties:
+        user_id:
+          type: string
+        name:
+          type: string
+        relationship:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        is_primary:
+          type: boolean
+          default: false
+        notify_on_crisis:
+          type: boolean
+          default: true
+
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        name:
+          type: string
+        relationship:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        is_primary:
+          type: boolean
+        notify_on_crisis:
+          type: boolean
+
+    ContactListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+        count:
+          type: integer
+
+    CrisisResources:
+      type: object
+      properties:
+        region:
+          type: string
+        resources:
+          type: object
+          additionalProperties:
+            type: string
+        message:
+          type: string
+      example:
+        region: us
+        resources:
+          suicide_hotline: "988"
+          crisis_text: "Text HOME to 741741"
+          emergency: "911"
+        message: "If you're in immediate danger, please call emergency services."
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          default: false
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+
